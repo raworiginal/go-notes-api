@@ -15,20 +15,25 @@ var (
 
 // Claims is the JWT payload structure.
 type Claims struct {
-	UserID int    `json:"user_id"`
-	Email  string `json:"email"`
+	UserID   int    `json:"user_id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
-// GenerateToken creates a signed JWT token for the given userID and email.
-// TODO(human): implement token signing using the secret key and jwt.NewWithClaims
-func GenerateToken(userID int, email string, secret string) (string, error) {
-	// TODO: implement
-	// Hints:
-	// - Create a Claims struct with userID, email, and expiry (e.g., 24 hours from now)
-	// - Use jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// - Sign with the secret key: token.SignedString([]byte(secret))
-	return "", nil
+// GenerateToken creates a signed JWT token with a 24-hour expiry.
+func GenerateToken(userID int, email, username, secret string) (string, error) {
+	claims := Claims{
+		UserID:           userID,
+		Email:            email,
+		Username:         username,
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour))},
+	}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 // ValidateToken parses and validates a JWT token, returning the claims if valid.
@@ -41,7 +46,6 @@ func ValidateToken(tokenString string, secret string) (*Claims, error) {
 		}
 		return []byte(secret), nil
 	})
-
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
