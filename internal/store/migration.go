@@ -6,20 +6,22 @@ import (
 )
 
 // runMigrations runs schema migrations for the Note model.
-// It creates the table if it doesn't exist and adds new columns with proper defaults.
+// It ensures the table exists and adds new columns with proper defaults.
 func runMigrations(db *gorm.DB) error {
-	// First, ensure the table exists with AutoMigrate
+	// Ensure the table exists (idempotent - safe to call even if table already exists)
 	if err := db.AutoMigrate(&note.Note{}); err != nil {
 		return err
 	}
 
-	// Add the type column if it doesn't exist with default value 'text'
+	// Add type column if it doesn't exist
 	if !db.Migrator().HasColumn(&note.Note{}, "type") {
 		if err := db.Migrator().AddColumn(&note.Note{}, "type"); err != nil {
 			return err
 		}
-		// Set default value for existing rows
-		if err := db.Model(&note.Note{}).Where("type = ?", "").Update("type", note.NoteTypeText).Error; err != nil {
+		// Set default type for existing rows (handle both NULL and empty string)
+		if err := db.Model(&note.Note{}).
+			Where("type = ? OR type IS NULL", "").
+			Update("type", note.NoteTypeText).Error; err != nil {
 			return err
 		}
 	}

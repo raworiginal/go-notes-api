@@ -3,6 +3,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/raworiginal/go-notes-api/internal/note"
 	"gorm.io/gorm"
@@ -14,7 +15,7 @@ type SQLiteNoteStore struct {
 
 func NewSQLiteNoteStore(db *gorm.DB) *SQLiteNoteStore {
 	if err := runMigrations(db); err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to run database migrations: %v", err))
 	}
 	return &SQLiteNoteStore{db}
 }
