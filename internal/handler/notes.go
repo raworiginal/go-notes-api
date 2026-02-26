@@ -67,7 +67,7 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Parse JSON body
 	var req struct {
 		Title string      `json:"title"`
-		Body  string      `json:"body"`
+		Body  *string     `json:"body"`
 		Type  note.NoteType `json:"type"`
 		Todos []note.Todo `json:"todos"`
 	}

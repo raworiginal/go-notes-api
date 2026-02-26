@@ -112,7 +112,7 @@ func TestCreateTextNote(t *testing.T) {
 	title := "My Text Note"
 	body := "This is the note body"
 
-	note, err := service.CreateWithType(1, title, body, NoteTypeText)
+	note, err := service.CreateWithType(1, title, &body, NoteTypeText)
 	if err != nil {
 		t.Fatalf("CreateWithType() error = %v", err)
 	}
@@ -145,7 +145,7 @@ func TestCreateListNoteWithTodos(t *testing.T) {
 		{Text: "Task 2", Completed: true},
 	}
 
-	note, err := service.CreateWithType(1, title, "", NoteTypeList, todos...)
+	note, err := service.CreateWithType(1, title, nil, NoteTypeList, todos...)
 	if err != nil {
 		t.Fatalf("CreateWithType() error = %v", err)
 	}

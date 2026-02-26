@@ -30,11 +30,11 @@ func (s *Service) GetByID(userID, id int) (*Note, error) {
 	return s.repo.GetByID(userID, id)
 }
 
-func (s *Service) Create(userID int, title string, body string) (*Note, error) {
+func (s *Service) Create(userID int, title string, body *string) (*Note, error) {
 	return s.CreateWithType(userID, title, body, NoteTypeText)
 }
 
-func (s *Service) CreateWithType(userID int, title string, body string, noteType NoteType, todos ...Todo) (*Note, error) {
+func (s *Service) CreateWithType(userID int, title string, body *string, noteType NoteType, todos ...Todo) (*Note, error) {
 	if title == "" {
 		return nil, ErrInvalidInput
 	}
@@ -49,11 +49,10 @@ func (s *Service) CreateWithType(userID int, title string, body string, noteType
 		return nil, err
 	}
 
-	bodyPtr := &body
 	note := &Note{
 		UserID: userID,
 		Title:  title,
-		Body:   bodyPtr,
+		Body:   body,
 		Type:   noteType,
 		Todos:  todos,
 	}
