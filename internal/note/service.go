@@ -10,12 +10,12 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) GetAll() ([]*Note, error) {
-	return s.repo.GetAll()
+func (s *Service) GetAll(userID int) ([]*Note, error) {
+	return s.repo.GetAll(userID)
 }
 
-func (s *Service) GetByID(id int) (*Note, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(userID, id int) (*Note, error) {
+	return s.repo.GetByID(userID, id)
 }
 
 func (s *Service) Create(title string, body string) (*Note, error) {
@@ -34,8 +34,8 @@ func (s *Service) Create(title string, body string) (*Note, error) {
 	return note, nil
 }
 
-func (s *Service) Update(id int, title string, body *string) (*Note, error) {
-	note, err := s.repo.GetByID(id)
+func (s *Service) Update(userID, id int, title string, body *string) (*Note, error) {
+	note, err := s.repo.GetByID(userID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +52,6 @@ func (s *Service) Update(id int, title string, body *string) (*Note, error) {
 	return note, nil
 }
 
-func (s *Service) Delete(id int) error {
-	return s.repo.Delete(id)
+func (s *Service) Delete(userID, id int) error {
+	return s.repo.Delete(userID, id)
 }

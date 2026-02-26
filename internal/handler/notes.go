@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/raworiginal/go-notes-api/internal/auth"
 	"github.com/raworiginal/go-notes-api/internal/note"
 )
 
@@ -19,7 +20,8 @@ func NewNotesHandler(service *note.Service) *NotesHandler {
 
 // GET /notes - List all notes
 func (h *NotesHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	notes, err := h.service.GetAll()
+	userID := auth.UserIDFromContext(r.Context())
+	notes, err := h.service.GetAll(userID)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
@@ -31,6 +33,7 @@ func (h *NotesHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 // GET /notes/{id} - Get note by ID
 func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -39,7 +42,7 @@ func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := h.service.GetByID(id)
+	n, err := h.service.GetByID(userID, id)
 	if err != nil {
 		if errors.Is(err, note.ErrNotFound) {
 			http.Error(w, "Note not found", http.StatusNotFound)
@@ -81,6 +84,7 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // PUT /notes/{id} - Update a note
 func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -98,7 +102,7 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	n, err := h.service.Update(id, req.Title, req.Body)
+	n, err := h.service.Update(userID, id, req.Title, req.Body)
 	if err != nil {
 		if errors.Is(err, note.ErrInvalidInput) {
 			http.Error(w, "Invalid Input", http.StatusBadRequest)
@@ -118,6 +122,7 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /notes/{id} - Delete a note
 func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -125,7 +130,7 @@ func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.service.Delete(id); err != nil {
+	if err := h.service.Delete(userID, id); err != nil {
 		if errors.Is(err, note.ErrNotFound) {
 			http.Error(w, "Note not found", http.StatusNotFound)
 			return
