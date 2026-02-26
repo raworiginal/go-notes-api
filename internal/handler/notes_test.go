@@ -1,0 +1,289 @@
+package handler
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/raworiginal/go-notes-api/internal/note"
+)
+
+// mockRepo is a test double for note.Repository.
+// Each method delegates to a function field so individual test cases
+// can inject exactly the behavior they need without a full mock struct per case.
+type mockRepo struct {
+	getAllFn   func() ([]*note.Note, error)
+	getByIDFn func(id int) (*note.Note, error)
+	createFn  func(n *note.Note) error
+	updateFn  func(n *note.Note) error
+	deleteFn  func(id int) error
+}
+
+func (m *mockRepo) GetAll() ([]*note.Note, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn()
+	}
+	return nil, nil
+}
+
+func (m *mockRepo) GetByID(id int) (*note.Note, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(id)
+	}
+	return nil, note.ErrNotFound
+}
+
+func (m *mockRepo) Create(n *note.Note) error {
+	if m.createFn != nil {
+		return m.createFn(n)
+	}
+	return nil
+}
+
+func (m *mockRepo) Update(n *note.Note) error {
+	if m.updateFn != nil {
+		return m.updateFn(n)
+	}
+	return nil
+}
+
+func (m *mockRepo) Delete(id int) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(id)
+	}
+	return nil
+}
+
+func newTestHandler(repo note.Repository) *NotesHandler {
+	return NewNotesHandler(note.NewService(repo))
+}
+
+func TestGetAll(t *testing.T) {
+	tests := []struct {
+		name       string
+		repo       *mockRepo
+		wantStatus int
+		wantCount  int
+	}{
+		{
+			name:       "empty list",
+			repo:       &mockRepo{getAllFn: func() ([]*note.Note, error) { return []*note.Note{}, nil }},
+			wantStatus: http.StatusOK,
+			wantCount:  0,
+		},
+		{
+			name: "multiple notes",
+			repo: &mockRepo{getAllFn: func() ([]*note.Note, error) {
+				return []*note.Note{{ID: 1, Title: "first"}, {ID: 2, Title: "second"}}, nil
+			}},
+			wantStatus: http.StatusOK,
+			wantCount:  2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(tc.repo)
+			req := httptest.NewRequest(http.MethodGet, "/notes", nil)
+			w := httptest.NewRecorder()
+			h.GetAll(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+
+			var got []*note.Note
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if len(got) != tc.wantCount {
+				t.Errorf("note count = %d, want %d", len(got), tc.wantCount)
+			}
+		})
+	}
+}
+
+func TestGetByID(t *testing.T) {
+	tests := []struct {
+		name       string
+		pathID     string
+		repo       *mockRepo
+		wantStatus int
+	}{
+		{
+			name:   "found",
+			pathID: "1",
+			repo: &mockRepo{getByIDFn: func(id int) (*note.Note, error) {
+				return &note.Note{ID: 1, Title: "hello"}, nil
+			}},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "not found",
+			pathID: "99",
+			repo: &mockRepo{getByIDFn: func(id int) (*note.Note, error) {
+				return nil, note.ErrNotFound
+			}},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "invalid id",
+			pathID:     "abc",
+			repo:       &mockRepo{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(tc.repo)
+			req := httptest.NewRequest(http.MethodGet, "/notes/"+tc.pathID, nil)
+			req.SetPathValue("id", tc.pathID)
+			w := httptest.NewRecorder()
+			h.GetByID(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestCreate(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name:       "success",
+			body:       `{"title":"my note","body":"some content"}`,
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:       "empty title",
+			body:       `{"title":"","body":"content"}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid json",
+			body:       `not json`,
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(&mockRepo{})
+			req := httptest.NewRequest(http.MethodPost, "/notes", bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			h.Create(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	tests := []struct {
+		name       string
+		pathID     string
+		body       string
+		repo       *mockRepo
+		wantStatus int
+	}{
+		{
+			name:   "success",
+			pathID: "1",
+			body:   `{"title":"updated title"}`,
+			repo: &mockRepo{
+				getByIDFn: func(id int) (*note.Note, error) {
+					return &note.Note{ID: 1, Title: "original"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "not found",
+			pathID: "99",
+			body:   `{"title":"updated"}`,
+			repo: &mockRepo{
+				getByIDFn: func(id int) (*note.Note, error) {
+					return nil, note.ErrNotFound
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "invalid id",
+			pathID:     "xyz",
+			body:       `{"title":"x"}`,
+			repo:       &mockRepo{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(tc.repo)
+			req := httptest.NewRequest(http.MethodPut, "/notes/"+tc.pathID, bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			req.SetPathValue("id", tc.pathID)
+			w := httptest.NewRecorder()
+			h.Update(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestDelete(t *testing.T) {
+	tests := []struct {
+		name       string
+		pathID     string
+		repo       *mockRepo
+		wantStatus int
+	}{
+		{
+			name:       "success",
+			pathID:     "1",
+			repo:       &mockRepo{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "not found",
+			pathID: "99",
+			repo: &mockRepo{deleteFn: func(id int) error {
+				return note.ErrNotFound
+			}},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "invalid id",
+			pathID:     "abc",
+			repo:       &mockRepo{},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(tc.repo)
+			req := httptest.NewRequest(http.MethodDelete, "/notes/"+tc.pathID, nil)
+			req.SetPathValue("id", tc.pathID)
+			w := httptest.NewRecorder()
+			h.Delete(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
+	}
+}

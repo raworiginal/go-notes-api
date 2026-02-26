@@ -104,6 +104,10 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid Input", http.StatusBadRequest)
 			return
 		}
+		if errors.Is(err, note.ErrNotFound) {
+			http.Error(w, "Note not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Internal Error", http.StatusInternalServerError)
 		return
 	}

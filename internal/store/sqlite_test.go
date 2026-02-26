@@ -1,0 +1,139 @@
+package store
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/raworiginal/go-notes-api/internal/note"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+// setupTestDB opens a fresh in-memory SQLite database and migrates the
+// Note schema. Each test gets its own DB so they are fully isolated.
+func setupTestDB(t *testing.T) *SQLiteStore {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(&note.Note{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return NewSQLiteStore(db)
+}
+
+func TestSQLiteStore_GetAll(t *testing.T) {
+	s := setupTestDB(t)
+
+	notes, err := s.GetAll()
+	if err != nil {
+		t.Fatalf("GetAll on empty db: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Errorf("want 0 notes, got %d", len(notes))
+	}
+
+	_ = s.Create(&note.Note{Title: "first"})
+	_ = s.Create(&note.Note{Title: "second"})
+
+	notes, err = s.GetAll()
+	if err != nil {
+		t.Fatalf("GetAll after inserts: %v", err)
+	}
+	if len(notes) != 2 {
+		t.Errorf("want 2 notes, got %d", len(notes))
+	}
+}
+
+func TestSQLiteStore_GetByID(t *testing.T) {
+	s := setupTestDB(t)
+
+	n := &note.Note{Title: "find me", Body: "body text"}
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := s.GetByID(n.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.Title != n.Title {
+		t.Errorf("title = %q, want %q", got.Title, n.Title)
+	}
+	if got.Body != n.Body {
+		t.Errorf("body = %q, want %q", got.Body, n.Body)
+	}
+
+	// Non-existent record should map to ErrNotFound, not a raw GORM error.
+	_, err = s.GetByID(9999)
+	if !errors.Is(err, note.ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestSQLiteStore_Create(t *testing.T) {
+	s := setupTestDB(t)
+
+	n := &note.Note{Title: "new note", Body: "content"}
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if n.ID == 0 {
+		t.Error("expected GORM to populate a non-zero ID after create")
+	}
+
+	// Verify the record was actually persisted.
+	got, err := s.GetByID(n.ID)
+	if err != nil {
+		t.Fatalf("GetByID after create: %v", err)
+	}
+	if got.Title != n.Title || got.Body != n.Body {
+		t.Errorf("persisted note = {%q, %q}, want {%q, %q}", got.Title, got.Body, n.Title, n.Body)
+	}
+}
+
+func TestSQLiteStore_Update(t *testing.T) {
+	s := setupTestDB(t)
+
+	n := &note.Note{Title: "original", Body: "old body"}
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	n.Title = "updated"
+	n.Body = "new body"
+	if err := s.Update(n); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := s.GetByID(n.ID)
+	if err != nil {
+		t.Fatalf("GetByID after update: %v", err)
+	}
+	if got.Title != "updated" {
+		t.Errorf("title = %q, want %q", got.Title, "updated")
+	}
+	if got.Body != "new body" {
+		t.Errorf("body = %q, want %q", got.Body, "new body")
+	}
+}
+
+func TestSQLiteStore_Delete(t *testing.T) {
+	s := setupTestDB(t)
+
+	n := &note.Note{Title: "to delete"}
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if err := s.Delete(n.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	_, err := s.GetByID(n.ID)
+	if !errors.Is(err, note.ErrNotFound) {
+		t.Errorf("after delete, err = %v, want ErrNotFound", err)
+	}
+}
