@@ -25,8 +25,9 @@ func setupTestDB(t *testing.T) *SQLiteStore {
 
 func TestSQLiteStore_GetAll(t *testing.T) {
 	s := setupTestDB(t)
+	const userID = 1
 
-	notes, err := s.GetAll()
+	notes, err := s.GetAll(userID)
 	if err != nil {
 		t.Fatalf("GetAll on empty db: %v", err)
 	}
@@ -34,10 +35,10 @@ func TestSQLiteStore_GetAll(t *testing.T) {
 		t.Errorf("want 0 notes, got %d", len(notes))
 	}
 
-	_ = s.Create(&note.Note{Title: "first"})
-	_ = s.Create(&note.Note{Title: "second"})
+	_ = s.Create(&note.Note{UserID: userID, Title: "first"})
+	_ = s.Create(&note.Note{UserID: userID, Title: "second"})
 
-	notes, err = s.GetAll()
+	notes, err = s.GetAll(userID)
 	if err != nil {
 		t.Fatalf("GetAll after inserts: %v", err)
 	}
@@ -48,13 +49,14 @@ func TestSQLiteStore_GetAll(t *testing.T) {
 
 func TestSQLiteStore_GetByID(t *testing.T) {
 	s := setupTestDB(t)
+	const userID = 1
 
-	n := &note.Note{Title: "find me", Body: "body text"}
+	n := &note.Note{UserID: userID, Title: "find me", Body: "body text"}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	got, err := s.GetByID(n.ID)
+	got, err := s.GetByID(userID, n.ID)
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
@@ -66,7 +68,7 @@ func TestSQLiteStore_GetByID(t *testing.T) {
 	}
 
 	// Non-existent record should map to ErrNotFound, not a raw GORM error.
-	_, err = s.GetByID(9999)
+	_, err = s.GetByID(userID, 9999)
 	if !errors.Is(err, note.ErrNotFound) {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -74,8 +76,9 @@ func TestSQLiteStore_GetByID(t *testing.T) {
 
 func TestSQLiteStore_Create(t *testing.T) {
 	s := setupTestDB(t)
+	const userID = 1
 
-	n := &note.Note{Title: "new note", Body: "content"}
+	n := &note.Note{UserID: userID, Title: "new note", Body: "content"}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -85,7 +88,7 @@ func TestSQLiteStore_Create(t *testing.T) {
 	}
 
 	// Verify the record was actually persisted.
-	got, err := s.GetByID(n.ID)
+	got, err := s.GetByID(userID, n.ID)
 	if err != nil {
 		t.Fatalf("GetByID after create: %v", err)
 	}
@@ -96,8 +99,9 @@ func TestSQLiteStore_Create(t *testing.T) {
 
 func TestSQLiteStore_Update(t *testing.T) {
 	s := setupTestDB(t)
+	const userID = 1
 
-	n := &note.Note{Title: "original", Body: "old body"}
+	n := &note.Note{UserID: userID, Title: "original", Body: "old body"}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -108,7 +112,7 @@ func TestSQLiteStore_Update(t *testing.T) {
 		t.Fatalf("Update: %v", err)
 	}
 
-	got, err := s.GetByID(n.ID)
+	got, err := s.GetByID(userID, n.ID)
 	if err != nil {
 		t.Fatalf("GetByID after update: %v", err)
 	}
@@ -122,17 +126,18 @@ func TestSQLiteStore_Update(t *testing.T) {
 
 func TestSQLiteStore_Delete(t *testing.T) {
 	s := setupTestDB(t)
+	const userID = 1
 
-	n := &note.Note{Title: "to delete"}
+	n := &note.Note{UserID: userID, Title: "to delete"}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if err := s.Delete(n.ID); err != nil {
+	if err := s.Delete(userID, n.ID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
-	_, err := s.GetByID(n.ID)
+	_, err := s.GetByID(userID, n.ID)
 	if !errors.Is(err, note.ErrNotFound) {
 		t.Errorf("after delete, err = %v, want ErrNotFound", err)
 	}

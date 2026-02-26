@@ -14,23 +14,23 @@ import (
 // Each method delegates to a function field so individual test cases
 // can inject exactly the behavior they need without a full mock struct per case.
 type mockRepo struct {
-	getAllFn   func() ([]*note.Note, error)
-	getByIDFn func(id int) (*note.Note, error)
+	getAllFn   func(userID int) ([]*note.Note, error)
+	getByIDFn func(userID, id int) (*note.Note, error)
 	createFn  func(n *note.Note) error
 	updateFn  func(n *note.Note) error
-	deleteFn  func(id int) error
+	deleteFn  func(userID, id int) error
 }
 
-func (m *mockRepo) GetAll() ([]*note.Note, error) {
+func (m *mockRepo) GetAll(userID int) ([]*note.Note, error) {
 	if m.getAllFn != nil {
-		return m.getAllFn()
+		return m.getAllFn(userID)
 	}
 	return nil, nil
 }
 
-func (m *mockRepo) GetByID(id int) (*note.Note, error) {
+func (m *mockRepo) GetByID(userID, id int) (*note.Note, error) {
 	if m.getByIDFn != nil {
-		return m.getByIDFn(id)
+		return m.getByIDFn(userID, id)
 	}
 	return nil, note.ErrNotFound
 }
@@ -49,9 +49,9 @@ func (m *mockRepo) Update(n *note.Note) error {
 	return nil
 }
 
-func (m *mockRepo) Delete(id int) error {
+func (m *mockRepo) Delete(userID, id int) error {
 	if m.deleteFn != nil {
-		return m.deleteFn(id)
+		return m.deleteFn(userID, id)
 	}
 	return nil
 }
@@ -69,14 +69,14 @@ func TestGetAll(t *testing.T) {
 	}{
 		{
 			name:       "empty list",
-			repo:       &mockRepo{getAllFn: func() ([]*note.Note, error) { return []*note.Note{}, nil }},
+			repo:       &mockRepo{getAllFn: func(userID int) ([]*note.Note, error) { return []*note.Note{}, nil }},
 			wantStatus: http.StatusOK,
 			wantCount:  0,
 		},
 		{
 			name: "multiple notes",
-			repo: &mockRepo{getAllFn: func() ([]*note.Note, error) {
-				return []*note.Note{{ID: 1, Title: "first"}, {ID: 2, Title: "second"}}, nil
+			repo: &mockRepo{getAllFn: func(userID int) ([]*note.Note, error) {
+				return []*note.Note{{ID: 1, UserID: userID, Title: "first"}, {ID: 2, UserID: userID, Title: "second"}}, nil
 			}},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -115,15 +115,15 @@ func TestGetByID(t *testing.T) {
 		{
 			name:   "found",
 			pathID: "1",
-			repo: &mockRepo{getByIDFn: func(id int) (*note.Note, error) {
-				return &note.Note{ID: 1, Title: "hello"}, nil
+			repo: &mockRepo{getByIDFn: func(userID, id int) (*note.Note, error) {
+				return &note.Note{ID: 1, UserID: userID, Title: "hello"}, nil
 			}},
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:   "not found",
 			pathID: "99",
-			repo: &mockRepo{getByIDFn: func(id int) (*note.Note, error) {
+			repo: &mockRepo{getByIDFn: func(userID, id int) (*note.Note, error) {
 				return nil, note.ErrNotFound
 			}},
 			wantStatus: http.StatusNotFound,
@@ -202,8 +202,8 @@ func TestUpdate(t *testing.T) {
 			pathID: "1",
 			body:   `{"title":"updated title"}`,
 			repo: &mockRepo{
-				getByIDFn: func(id int) (*note.Note, error) {
-					return &note.Note{ID: 1, Title: "original"}, nil
+				getByIDFn: func(userID, id int) (*note.Note, error) {
+					return &note.Note{ID: 1, UserID: userID, Title: "original"}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -213,7 +213,7 @@ func TestUpdate(t *testing.T) {
 			pathID: "99",
 			body:   `{"title":"updated"}`,
 			repo: &mockRepo{
-				getByIDFn: func(id int) (*note.Note, error) {
+				getByIDFn: func(userID, id int) (*note.Note, error) {
 					return nil, note.ErrNotFound
 				},
 			},
@@ -260,7 +260,7 @@ func TestDelete(t *testing.T) {
 		{
 			name:   "not found",
 			pathID: "99",
-			repo: &mockRepo{deleteFn: func(id int) error {
+			repo: &mockRepo{deleteFn: func(userID, id int) error {
 				return note.ErrNotFound
 			}},
 			wantStatus: http.StatusNotFound,

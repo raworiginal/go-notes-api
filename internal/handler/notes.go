@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/raworiginal/go-notes-api/internal/auth"
 	"github.com/raworiginal/go-notes-api/internal/note"
 )
 
@@ -19,18 +20,23 @@ func NewNotesHandler(service *note.Service) *NotesHandler {
 
 // GET /notes - List all notes
 func (h *NotesHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	notes, err := h.service.GetAll()
+	userID := auth.UserIDFromContext(r.Context())
+	notes, err := h.service.GetAll(userID)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(notes)
+	if err := json.NewEncoder(w).Encode(notes); err != nil {
+		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // GET /notes/{id} - Get note by ID
 func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -39,7 +45,7 @@ func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := h.service.GetByID(id)
+	n, err := h.service.GetByID(userID, id)
 	if err != nil {
 		if errors.Is(err, note.ErrNotFound) {
 			http.Error(w, "Note not found", http.StatusNotFound)
@@ -49,11 +55,15 @@ func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(n)
+	if err := json.NewEncoder(w).Encode(n); err != nil {
+		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // POST /notes - Create a note
 func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Parse JSON body
 	var req struct {
 		Title string `json:"title"`
@@ -64,7 +74,7 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := h.service.Create(req.Title, req.Body)
+	n, err := h.service.Create(userID, req.Title, req.Body)
 	if err != nil {
 		if errors.Is(err, note.ErrInvalidInput) {
 			http.Error(w, "Invalid Input", http.StatusBadRequest)
@@ -76,11 +86,15 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(n)
+	if err := json.NewEncoder(w).Encode(n); err != nil {
+		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // PUT /notes/{id} - Update a note
 func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -98,7 +112,7 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	n, err := h.service.Update(id, req.Title, req.Body)
+	n, err := h.service.Update(userID, id, req.Title, req.Body)
 	if err != nil {
 		if errors.Is(err, note.ErrInvalidInput) {
 			http.Error(w, "Invalid Input", http.StatusBadRequest)
@@ -113,11 +127,15 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(n)
+	if err := json.NewEncoder(w).Encode(n); err != nil {
+		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // DELETE /notes/{id} - Delete a note
 func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -125,7 +143,7 @@ func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.service.Delete(id); err != nil {
+	if err := h.service.Delete(userID, id); err != nil {
 		if errors.Is(err, note.ErrNotFound) {
 			http.Error(w, "Note not found", http.StatusNotFound)
 			return
@@ -135,5 +153,8 @@ func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "note deleted"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "note deleted"}); err != nil {
+		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		return
+	}
 }
