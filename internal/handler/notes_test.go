@@ -440,3 +440,110 @@ func TestUpdateListNoteReplaceTodos(t *testing.T) {
 		})
 	}
 }
+
+func TestFullFlowTextAndListNotes(t *testing.T) {
+	// Track created notes to simulate database state
+	notes := make(map[int]*note.Note)
+	nextID := 1
+
+	// Create repo with full CRUD operations
+	repo := &mockRepo{
+		createFn: func(n *note.Note) error {
+			n.ID = nextID
+			notes[nextID] = n
+			nextID++
+			return nil
+		},
+		getByIDFn: func(userID, id int) (*note.Note, error) {
+			n, ok := notes[id]
+			if !ok {
+				return nil, note.ErrNotFound
+			}
+			return n, nil
+		},
+		getAllFn: func(userID int) ([]*note.Note, error) {
+			var result []*note.Note
+			for _, n := range notes {
+				if n.UserID == userID {
+					result = append(result, n)
+				}
+			}
+			return result, nil
+		},
+	}
+
+	// Step 1: Create a text note
+	h := newTestHandler(repo)
+	textBody := `{"type":"text","title":"My Note","body":"This is a text note"}`
+	req := httptest.NewRequest(http.MethodPost, "/notes", bytes.NewBufferString(textBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("create text note status = %d, want %d", w.Code, http.StatusCreated)
+	}
+
+	var textNote note.Note
+	if err := json.NewDecoder(w.Body).Decode(&textNote); err != nil {
+		t.Fatalf("decode text note response: %v", err)
+	}
+
+	if textNote.Type != note.NoteTypeText {
+		t.Errorf("text note type = %q, want %q", textNote.Type, note.NoteTypeText)
+	}
+	if textNote.Title != "My Note" {
+		t.Errorf("text note title = %q, want %q", textNote.Title, "My Note")
+	}
+
+	// Step 2: Create a list note
+	listBody := `{"type":"list","title":"Shopping List","body":"Items to buy","todos":[{"text":"apples","completed":false},{"text":"milk","completed":false}]}`
+	req = httptest.NewRequest(http.MethodPost, "/notes", bytes.NewBufferString(listBody))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	h.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("create list note status = %d, want %d", w.Code, http.StatusCreated)
+	}
+
+	var listNote note.Note
+	if err := json.NewDecoder(w.Body).Decode(&listNote); err != nil {
+		t.Fatalf("decode list note response: %v", err)
+	}
+
+	// Step 3: Verify list note properties
+	if listNote.Type != note.NoteTypeList {
+		t.Errorf("list note type = %q, want %q", listNote.Type, note.NoteTypeList)
+	}
+	if listNote.Title != "Shopping List" {
+		t.Errorf("list note title = %q, want %q", listNote.Title, "Shopping List")
+	}
+	if len(listNote.Todos) != 2 {
+		t.Errorf("list note todos count = %d, want %d", len(listNote.Todos), 2)
+	}
+	if listNote.Todos[0].Text != "apples" {
+		t.Errorf("first todo text = %q, want %q", listNote.Todos[0].Text, "apples")
+	}
+	if listNote.Todos[1].Text != "milk" {
+		t.Errorf("second todo text = %q, want %q", listNote.Todos[1].Text, "milk")
+	}
+
+	// Step 4: Verify both notes coexist by retrieving them
+	req = httptest.NewRequest(http.MethodGet, "/notes", nil)
+	w = httptest.NewRecorder()
+	h.GetAll(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("get all notes status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var allNotes []*note.Note
+	if err := json.NewDecoder(w.Body).Decode(&allNotes); err != nil {
+		t.Fatalf("decode all notes response: %v", err)
+	}
+
+	if len(allNotes) != 2 {
+		t.Errorf("total notes count = %d, want %d", len(allNotes), 2)
+	}
+}
