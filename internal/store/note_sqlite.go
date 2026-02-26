@@ -13,6 +13,9 @@ type SQLiteNoteStore struct {
 }
 
 func NewSQLiteNoteStore(db *gorm.DB) *SQLiteNoteStore {
+	if err := runMigrations(db); err != nil {
+		panic(err)
+	}
 	return &SQLiteNoteStore{db}
 }
 

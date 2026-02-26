@@ -17,10 +17,10 @@ func setupTestDB(t *testing.T) *SQLiteNoteStore {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&note.Note{}); err != nil {
+	if err := runMigrations(db); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	return NewSQLiteNoteStore(db)
+	return &SQLiteNoteStore{db}
 }
 
 func TestSQLiteNoteStore_GetAll(t *testing.T) {
@@ -163,5 +163,140 @@ func TestSQLiteNoteStore_Delete(t *testing.T) {
 	_, err := s.GetByID(userID, n.ID)
 	if !errors.Is(err, note.ErrNotFound) {
 		t.Errorf("after delete, err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCreateListNote(t *testing.T) {
+	s := setupTestDB(t)
+	const userID = 1
+
+	todos := []note.Todo{
+		{Text: "Buy milk", Completed: false},
+		{Text: "Write tests", Completed: true},
+	}
+
+	n := &note.Note{
+		UserID: userID,
+		Title:  "Shopping list",
+		Type:   note.NoteTypeList,
+		Todos:  todos,
+	}
+
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create list note: %v", err)
+	}
+
+	if n.ID == 0 {
+		t.Error("expected GORM to populate a non-zero ID after create")
+	}
+
+	// Verify the list note was persisted with todos
+	got, err := s.GetByID(userID, n.ID)
+	if err != nil {
+		t.Fatalf("GetByID after create: %v", err)
+	}
+
+	if got.Type != note.NoteTypeList {
+		t.Errorf("type = %q, want %q", got.Type, note.NoteTypeList)
+	}
+
+	if len(got.Todos) != len(todos) {
+		t.Errorf("todos count = %d, want %d", len(got.Todos), len(todos))
+	}
+
+	for i, todo := range got.Todos {
+		if todo.Text != todos[i].Text || todo.Completed != todos[i].Completed {
+			t.Errorf("todo[%d] = {%q, %v}, want {%q, %v}", i, todo.Text, todo.Completed, todos[i].Text, todos[i].Completed)
+		}
+	}
+}
+
+func TestGetListNote(t *testing.T) {
+	s := setupTestDB(t)
+	const userID = 1
+
+	todos := []note.Todo{
+		{Text: "First task", Completed: false},
+		{Text: "Second task", Completed: false},
+		{Text: "Third task", Completed: true},
+	}
+
+	n := &note.Note{
+		UserID: userID,
+		Title:  "Project checklist",
+		Type:   note.NoteTypeList,
+		Todos:  todos,
+	}
+
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := s.GetByID(userID, n.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+
+	if got.Type != note.NoteTypeList {
+		t.Errorf("type = %q, want %q", got.Type, note.NoteTypeList)
+	}
+
+	if len(got.Todos) != len(todos) {
+		t.Errorf("todos count = %d, want %d", len(got.Todos), len(todos))
+	}
+
+	for i, todo := range got.Todos {
+		if todo.Text != todos[i].Text || todo.Completed != todos[i].Completed {
+			t.Errorf("todo[%d] = {%q, %v}, want {%q, %v}", i, todo.Text, todo.Completed, todos[i].Text, todos[i].Completed)
+		}
+	}
+}
+
+func TestUpdateTodosReplace(t *testing.T) {
+	s := setupTestDB(t)
+	const userID = 1
+
+	initialTodos := []note.Todo{
+		{Text: "Old task 1", Completed: false},
+		{Text: "Old task 2", Completed: true},
+	}
+
+	n := &note.Note{
+		UserID: userID,
+		Title:  "Editable list",
+		Type:   note.NoteTypeList,
+		Todos:  initialTodos,
+	}
+
+	if err := s.Create(n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Update with new todos
+	newTodos := []note.Todo{
+		{Text: "New task 1", Completed: true},
+		{Text: "New task 2", Completed: false},
+		{Text: "New task 3", Completed: false},
+	}
+	n.Todos = newTodos
+
+	if err := s.Update(n); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	// Verify the update
+	got, err := s.GetByID(userID, n.ID)
+	if err != nil {
+		t.Fatalf("GetByID after update: %v", err)
+	}
+
+	if len(got.Todos) != len(newTodos) {
+		t.Errorf("todos count = %d, want %d", len(got.Todos), len(newTodos))
+	}
+
+	for i, todo := range got.Todos {
+		if todo.Text != newTodos[i].Text || todo.Completed != newTodos[i].Completed {
+			t.Errorf("todo[%d] = {%q, %v}, want {%q, %v}", i, todo.Text, todo.Completed, newTodos[i].Text, newTodos[i].Completed)
+		}
 	}
 }

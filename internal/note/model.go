@@ -23,7 +23,7 @@ type Note struct {
 	Title     string    `json:"title"`
 	Body      *string   `json:"body"`
 	Type      NoteType  `json:"type"`
-	Todos     []Todo    `json:"todos" gorm:"type:json"`
+	Todos     []Todo    `json:"todos" gorm:"type:json;serializer:json"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
