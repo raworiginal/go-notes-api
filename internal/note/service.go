@@ -1,5 +1,7 @@
 package note
 
+import "fmt"
+
 // Service holds the business logic for notes
 
 type Service struct {
@@ -8,6 +10,16 @@ type Service struct {
 
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// validateNoteType validates that the NoteType is one of the valid types
+func validateNoteType(t NoteType) error {
+	switch t {
+	case NoteTypeText, NoteTypeList:
+		return nil
+	default:
+		return fmt.Errorf("%w: invalid note type %q", ErrInvalidInput, t)
+	}
 }
 
 func (s *Service) GetAll(userID int) ([]*Note, error) {
@@ -19,8 +31,22 @@ func (s *Service) GetByID(userID, id int) (*Note, error) {
 }
 
 func (s *Service) Create(userID int, title string, body string) (*Note, error) {
+	return s.CreateWithType(userID, title, body, NoteTypeText)
+}
+
+func (s *Service) CreateWithType(userID int, title string, body string, noteType NoteType, todos ...Todo) (*Note, error) {
 	if title == "" {
 		return nil, ErrInvalidInput
+	}
+
+	// Default type to text if empty
+	if noteType == "" {
+		noteType = NoteTypeText
+	}
+
+	// Validate the type
+	if err := validateNoteType(noteType); err != nil {
+		return nil, err
 	}
 
 	bodyPtr := &body
@@ -28,6 +54,8 @@ func (s *Service) Create(userID int, title string, body string) (*Note, error) {
 		UserID: userID,
 		Title:  title,
 		Body:   bodyPtr,
+		Type:   noteType,
+		Todos:  todos,
 	}
 
 	if err := s.repo.Create(note); err != nil {
@@ -37,6 +65,10 @@ func (s *Service) Create(userID int, title string, body string) (*Note, error) {
 }
 
 func (s *Service) Update(userID, id int, title string, body *string) (*Note, error) {
+	return s.UpdateWithType(userID, id, title, body, "")
+}
+
+func (s *Service) UpdateWithType(userID, id int, title string, body *string, noteType NoteType) (*Note, error) {
 	note, err := s.repo.GetByID(userID, id)
 	if err != nil {
 		return nil, err
@@ -46,6 +78,12 @@ func (s *Service) Update(userID, id int, title string, body *string) (*Note, err
 	}
 	if body != nil {
 		note.Body = body
+	}
+	if noteType != "" {
+		if err := validateNoteType(noteType); err != nil {
+			return nil, err
+		}
+		note.Type = noteType
 	}
 	if err := s.repo.Update(note); err != nil {
 		return nil, err
