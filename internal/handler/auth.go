@@ -18,7 +18,7 @@ func NewAuthHandler(userService *user.Service, jwtSecret string) *AuthHandler {
 	return &AuthHandler{userService, jwtSecret}
 }
 
-// POST /login
+// Login Method POST /login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
