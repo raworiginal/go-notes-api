@@ -66,15 +66,22 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	// Parse JSON body
 	var req struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
+		Title string      `json:"title"`
+		Body  string      `json:"body"`
+		Type  note.NoteType `json:"type"`
+		Todos []note.Todo `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	n, err := h.service.Create(userID, req.Title, req.Body)
+	// Default type to text if not provided
+	if req.Type == "" {
+		req.Type = note.NoteTypeText
+	}
+
+	n, err := h.service.CreateWithType(userID, req.Title, req.Body, req.Type, req.Todos...)
 	if err != nil {
 		if errors.Is(err, note.ErrInvalidInput) {
 			http.Error(w, "Invalid Input", http.StatusBadRequest)
@@ -105,14 +112,16 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Parse JSON body
 	var req struct {
-		Title string  `json:"title"`
-		Body  *string `json:"body"`
+		Title string      `json:"title"`
+		Body  *string     `json:"body"`
+		Type  note.NoteType `json:"type"`
+		Todos []note.Todo `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	n, err := h.service.Update(userID, id, req.Title, req.Body)
+	n, err := h.service.UpdateWithTypeAndTodos(userID, id, req.Title, req.Body, req.Type, req.Todos)
 	if err != nil {
 		if errors.Is(err, note.ErrInvalidInput) {
 			http.Error(w, "Invalid Input", http.StatusBadRequest)

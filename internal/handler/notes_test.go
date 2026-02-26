@@ -287,3 +287,156 @@ func TestDelete(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateListNoteHandler(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+		wantType   note.NoteType
+		wantTodos  int
+	}{
+		{
+			name:       "create list note with todos",
+			body:       `{"type":"list","title":"shopping","body":"items to buy","todos":[{"text":"milk","completed":false},{"text":"bread","completed":true}]}`,
+			wantStatus: http.StatusCreated,
+			wantType:   note.NoteTypeList,
+			wantTodos:  2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(&mockRepo{})
+			req := httptest.NewRequest(http.MethodPost, "/notes", bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			h.Create(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+
+			var got note.Note
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if got.Type != tc.wantType {
+				t.Errorf("type = %q, want %q", got.Type, tc.wantType)
+			}
+			if len(got.Todos) != tc.wantTodos {
+				t.Errorf("todos count = %d, want %d", len(got.Todos), tc.wantTodos)
+			}
+		})
+	}
+}
+
+func TestGetListNoteHandler(t *testing.T) {
+	tests := []struct {
+		name       string
+		pathID     string
+		repo       *mockRepo
+		wantStatus int
+		wantType   note.NoteType
+	}{
+		{
+			name:   "get list note returns todos",
+			pathID: "1",
+			repo: &mockRepo{getByIDFn: func(userID, id int) (*note.Note, error) {
+				return &note.Note{
+					ID:    1,
+					UserID: userID,
+					Title: "shopping",
+					Type:  note.NoteTypeList,
+					Todos: []note.Todo{
+						{Text: "milk", Completed: false},
+						{Text: "bread", Completed: true},
+					},
+				}, nil
+			}},
+			wantStatus: http.StatusOK,
+			wantType:   note.NoteTypeList,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(tc.repo)
+			req := httptest.NewRequest(http.MethodGet, "/notes/"+tc.pathID, nil)
+			req.SetPathValue("id", tc.pathID)
+			w := httptest.NewRecorder()
+			h.GetByID(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+
+			var got note.Note
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if got.Type != tc.wantType {
+				t.Errorf("type = %q, want %q", got.Type, tc.wantType)
+			}
+			if len(got.Todos) != 2 {
+				t.Errorf("todos count = %d, want %d", len(got.Todos), 2)
+			}
+		})
+	}
+}
+
+func TestUpdateListNoteReplaceTodos(t *testing.T) {
+	tests := []struct {
+		name       string
+		pathID     string
+		body       string
+		repo       *mockRepo
+		wantStatus int
+		wantTodos  int
+	}{
+		{
+			name:   "update list note replaces todos",
+			pathID: "1",
+			body:   `{"type":"list","title":"updated shopping","todos":[{"text":"eggs","completed":false}]}`,
+			repo: &mockRepo{
+				getByIDFn: func(userID, id int) (*note.Note, error) {
+					return &note.Note{
+						ID:    1,
+						UserID: userID,
+						Title: "shopping",
+						Type:  note.NoteTypeList,
+						Todos: []note.Todo{
+							{Text: "milk", Completed: false},
+							{Text: "bread", Completed: true},
+						},
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantTodos:  1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTestHandler(tc.repo)
+			req := httptest.NewRequest(http.MethodPut, "/notes/"+tc.pathID, bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			req.SetPathValue("id", tc.pathID)
+			w := httptest.NewRecorder()
+			h.Update(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+
+			var got note.Note
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if len(got.Todos) != tc.wantTodos {
+				t.Errorf("todos count = %d, want %d", len(got.Todos), tc.wantTodos)
+			}
+		})
+	}
+}

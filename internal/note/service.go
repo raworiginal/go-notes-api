@@ -69,6 +69,10 @@ func (s *Service) Update(userID, id int, title string, body *string) (*Note, err
 }
 
 func (s *Service) UpdateWithType(userID, id int, title string, body *string, noteType NoteType) (*Note, error) {
+	return s.UpdateWithTypeAndTodos(userID, id, title, body, noteType, nil)
+}
+
+func (s *Service) UpdateWithTypeAndTodos(userID, id int, title string, body *string, noteType NoteType, todos []Todo) (*Note, error) {
 	note, err := s.repo.GetByID(userID, id)
 	if err != nil {
 		return nil, err
@@ -84,6 +88,9 @@ func (s *Service) UpdateWithType(userID, id int, title string, body *string, not
 			return nil, err
 		}
 		note.Type = noteType
+	}
+	if todos != nil {
+		note.Todos = todos
 	}
 	if err := s.repo.Update(note); err != nil {
 		return nil, err
