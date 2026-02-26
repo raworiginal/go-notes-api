@@ -18,14 +18,15 @@ func (s *Service) GetByID(userID, id int) (*Note, error) {
 	return s.repo.GetByID(userID, id)
 }
 
-func (s *Service) Create(title string, body string) (*Note, error) {
+func (s *Service) Create(userID int, title string, body string) (*Note, error) {
 	if title == "" {
 		return nil, ErrInvalidInput
 	}
 
 	note := &Note{
-		Title: title,
-		Body:  body,
+		UserID: userID,
+		Title:  title,
+		Body:   body,
 	}
 
 	if err := s.repo.Create(note); err != nil {
