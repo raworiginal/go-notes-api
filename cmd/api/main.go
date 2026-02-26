@@ -4,8 +4,11 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/raworiginal/go-notes-api/internal/auth"
 	"github.com/raworiginal/go-notes-api/internal/handler"
 	"github.com/raworiginal/go-notes-api/internal/middleware"
@@ -17,11 +20,30 @@ import (
 )
 
 func main() {
+	// Load .env file (best-effort; no error if file absent)
+	_ = godotenv.Load()
+
 	// Config from flags/env
-	port := flag.String("port", ":8080", "Server port")
-	dbPath := flag.String("db", "notes.db", "SQLite database path")
-	jwtSecret := flag.String("secret", "dev-secret-key", "JWT secret key")
+	port := flag.String("port", os.Getenv("PORT"), "Server port")
+	dbPath := flag.String("db", os.Getenv("DB_PATH"), "SQLite database path")
+	jwtSecret := flag.String("secret", os.Getenv("JWT_SECRET"), "JWT secret key")
 	flag.Parse()
+
+	// Validate required config
+	if *port == "" {
+		log.Fatal("port is required: set PORT in .env or pass --port")
+	}
+	if *dbPath == "" {
+		log.Fatal("db path is required: set DB_PATH in .env or pass --db")
+	}
+	if *jwtSecret == "" {
+		log.Fatal("JWT secret is required: set JWT_SECRET in .env or pass --secret")
+	}
+
+	// Normalize port — accept both "3000" and ":3000"
+	if !strings.HasPrefix(*port, ":") {
+		*port = ":" + *port
+	}
 
 	// Init database
 	db, err := gorm.Open(sqlite.Open(*dbPath), &gorm.Config{})

@@ -2,15 +2,15 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
-api
-go-notes
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-*.db
 bin/
+
+# Database files
+*.db
 
 # Test binary, built with `go test -c`
 *.test

@@ -4,6 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+**Using Makefile (recommended):**
+```bash
+make build    # Build binary to bin/api
+make run      # Build and run the server
+make test     # Run all tests
+make clean    # Remove binaries
+make help     # Show all targets
+```
+
+**Direct Go commands:**
 ```bash
 # Run all tests
 go test ./...
@@ -15,11 +25,11 @@ go test ./internal/store/
 # Run tests with verbose output
 go test -v ./...
 
-# Build
-go build ./cmd/api
+# Build to bin/
+go build -o bin/api ./cmd/api
 
-# Run the server
-go run ./cmd/api
+# Run the server (loads config from .env)
+./bin/api
 
 # Add dependencies
 go get gorm.io/gorm
