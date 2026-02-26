@@ -30,11 +30,6 @@ func main() {
 	}
 	db.Exec("PRAGMA foreign_keys = ON")
 
-	// Auto-migrate schemas (adds new columns/tables, never drops)
-	if err := db.AutoMigrate(&user.User{}, &note.Note{}); err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
-	}
-
 	// Dependency injection chain
 	noteStore := store.NewSQLiteNoteStore(db)
 	noteService := note.NewService(noteStore)

@@ -16,7 +16,7 @@ func NewUsersHandler(service *user.Service) *UsersHandler {
 	return &UsersHandler{service}
 }
 
-// POST /users/register
+// Register a new user POST /users/register
 func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
@@ -43,5 +43,8 @@ func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(u)
+	if err := json.NewEncoder(w).Encode(u); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
 }

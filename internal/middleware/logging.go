@@ -21,7 +21,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 	}
 }
 
-// Middleware that logs HTTP requests
+// Logging Middleware that logs HTTP requests
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Wrap the response writer

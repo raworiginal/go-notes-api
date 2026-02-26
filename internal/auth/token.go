@@ -1,3 +1,4 @@
+// Package auth manages jwt tokens and claims
 package auth
 
 import (

@@ -18,7 +18,7 @@ func NewNotesHandler(service *note.Service) *NotesHandler {
 	return &NotesHandler{service}
 }
 
-// GET /notes - List all notes
+// GetAll -List all notes  GET /notes
 func (h *NotesHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	notes, err := h.service.GetAll(userID)
@@ -29,12 +29,12 @@ func (h *NotesHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(notes); err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 }
 
-// GET /notes/{id} - Get note by ID
+// GetByID GET /notes/{id}
 func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
@@ -56,20 +56,20 @@ func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(n); err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 }
 
-// POST /notes - Create a note
+// Create a note POST /notes
 func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	// Parse JSON body
 	var req struct {
-		Title string      `json:"title"`
-		Body  *string     `json:"body"`
+		Title string        `json:"title"`
+		Body  *string       `json:"body"`
 		Type  note.NoteType `json:"type"`
-		Todos []note.Todo `json:"todos"`
+		Todos []note.Todo   `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -94,12 +94,12 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(n); err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 }
 
-// PUT /notes/{id} - Update a note
+// Update a note - PUT /notes/{id}
 func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
@@ -112,10 +112,10 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Parse JSON body
 	var req struct {
-		Title string      `json:"title"`
-		Body  *string     `json:"body"`
+		Title string        `json:"title"`
+		Body  *string       `json:"body"`
 		Type  note.NoteType `json:"type"`
-		Todos []note.Todo `json:"todos"`
+		Todos []note.Todo   `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -137,12 +137,12 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(n); err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 }
 
-// DELETE /notes/{id} - Delete a note
+// Delete a note - DELETE /notes/{id}
 func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	// Extract {id} from path
@@ -163,7 +163,7 @@ func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "note deleted"}); err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 }
