@@ -23,10 +23,11 @@ func (s *Service) Create(userID int, title string, body string) (*Note, error) {
 		return nil, ErrInvalidInput
 	}
 
+	bodyPtr := &body
 	note := &Note{
 		UserID: userID,
 		Title:  title,
-		Body:   body,
+		Body:   bodyPtr,
 	}
 
 	if err := s.repo.Create(note); err != nil {
@@ -44,7 +45,7 @@ func (s *Service) Update(userID, id int, title string, body *string) (*Note, err
 		note.Title = title
 	}
 	if body != nil {
-		note.Body = *body
+		note.Body = body
 	}
 	if err := s.repo.Update(note); err != nil {
 		return nil, err

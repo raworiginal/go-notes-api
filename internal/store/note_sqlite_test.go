@@ -51,7 +51,8 @@ func TestSQLiteNoteStore_GetByID(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
-	n := &note.Note{UserID: userID, Title: "find me", Body: "body text"}
+	bodyText := "body text"
+	n := &note.Note{UserID: userID, Title: "find me", Body: &bodyText}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -63,8 +64,15 @@ func TestSQLiteNoteStore_GetByID(t *testing.T) {
 	if got.Title != n.Title {
 		t.Errorf("title = %q, want %q", got.Title, n.Title)
 	}
-	if got.Body != n.Body {
-		t.Errorf("body = %q, want %q", got.Body, n.Body)
+	if (got.Body == nil && n.Body != nil) || (got.Body != nil && n.Body == nil) || (got.Body != nil && n.Body != nil && *got.Body != *n.Body) {
+		var gotBody, wantBody string
+		if got.Body != nil {
+			gotBody = *got.Body
+		}
+		if n.Body != nil {
+			wantBody = *n.Body
+		}
+		t.Errorf("body = %q, want %q", gotBody, wantBody)
 	}
 
 	// Non-existent record should map to ErrNotFound, not a raw GORM error.
@@ -78,7 +86,8 @@ func TestSQLiteNoteStore_Create(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
-	n := &note.Note{UserID: userID, Title: "new note", Body: "content"}
+	content := "content"
+	n := &note.Note{UserID: userID, Title: "new note", Body: &content}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -92,8 +101,16 @@ func TestSQLiteNoteStore_Create(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID after create: %v", err)
 	}
-	if got.Title != n.Title || got.Body != n.Body {
-		t.Errorf("persisted note = {%q, %q}, want {%q, %q}", got.Title, got.Body, n.Title, n.Body)
+	gotBody := ""
+	if got.Body != nil {
+		gotBody = *got.Body
+	}
+	wantBody := ""
+	if n.Body != nil {
+		wantBody = *n.Body
+	}
+	if got.Title != n.Title || gotBody != wantBody {
+		t.Errorf("persisted note = {%q, %q}, want {%q, %q}", got.Title, gotBody, n.Title, wantBody)
 	}
 }
 
@@ -101,13 +118,15 @@ func TestSQLiteNoteStore_Update(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
-	n := &note.Note{UserID: userID, Title: "original", Body: "old body"}
+	oldBody := "old body"
+	n := &note.Note{UserID: userID, Title: "original", Body: &oldBody}
 	if err := s.Create(n); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
 	n.Title = "updated"
-	n.Body = "new body"
+	newBody := "new body"
+	n.Body = &newBody
 	if err := s.Update(n); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -119,8 +138,12 @@ func TestSQLiteNoteStore_Update(t *testing.T) {
 	if got.Title != "updated" {
 		t.Errorf("title = %q, want %q", got.Title, "updated")
 	}
-	if got.Body != "new body" {
-		t.Errorf("body = %q, want %q", got.Body, "new body")
+	gotBody := ""
+	if got.Body != nil {
+		gotBody = *got.Body
+	}
+	if gotBody != "new body" {
+		t.Errorf("body = %q, want %q", gotBody, "new body")
 	}
 }
 
