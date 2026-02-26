@@ -11,7 +11,7 @@ import (
 
 // setupTestDB opens a fresh in-memory SQLite database and migrates the
 // Note schema. Each test gets its own DB so they are fully isolated.
-func setupTestDB(t *testing.T) *SQLiteStore {
+func setupTestDB(t *testing.T) *SQLiteNoteStore {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
@@ -20,10 +20,10 @@ func setupTestDB(t *testing.T) *SQLiteStore {
 	if err := db.AutoMigrate(&note.Note{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	return NewSQLiteStore(db)
+	return NewSQLiteNoteStore(db)
 }
 
-func TestSQLiteStore_GetAll(t *testing.T) {
+func TestSQLiteNoteStore_GetAll(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
@@ -47,7 +47,7 @@ func TestSQLiteStore_GetAll(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_GetByID(t *testing.T) {
+func TestSQLiteNoteStore_GetByID(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
@@ -74,7 +74,7 @@ func TestSQLiteStore_GetByID(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_Create(t *testing.T) {
+func TestSQLiteNoteStore_Create(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
@@ -97,7 +97,7 @@ func TestSQLiteStore_Create(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_Update(t *testing.T) {
+func TestSQLiteNoteStore_Update(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 
@@ -124,7 +124,7 @@ func TestSQLiteStore_Update(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_Delete(t *testing.T) {
+func TestSQLiteNoteStore_Delete(t *testing.T) {
 	s := setupTestDB(t)
 	const userID = 1
 

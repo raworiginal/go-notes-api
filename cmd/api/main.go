@@ -36,7 +36,7 @@ func main() {
 	}
 
 	// Dependency injection chain
-	noteStore := store.NewSQLiteStore(db)
+	noteStore := store.NewSQLiteNoteStore(db)
 	noteService := note.NewService(noteStore)
 	notesHandler := handler.NewNotesHandler(noteService)
 

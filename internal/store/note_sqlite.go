@@ -8,15 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type SQLiteStore struct {
+type SQLiteNoteStore struct {
 	db *gorm.DB
 }
 
-func NewSQLiteStore(db *gorm.DB) *SQLiteStore {
-	return &SQLiteStore{db}
+func NewSQLiteNoteStore(db *gorm.DB) *SQLiteNoteStore {
+	return &SQLiteNoteStore{db}
 }
 
-func (s *SQLiteStore) GetByID(userID, id int) (*note.Note, error) {
+func (s *SQLiteNoteStore) GetByID(userID, id int) (*note.Note, error) {
 	var n note.Note
 	if err := s.db.Where("user_id = ?", userID).First(&n, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -27,7 +27,7 @@ func (s *SQLiteStore) GetByID(userID, id int) (*note.Note, error) {
 	return &n, nil
 }
 
-func (s *SQLiteStore) GetAll(userID int) ([]*note.Note, error) {
+func (s *SQLiteNoteStore) GetAll(userID int) ([]*note.Note, error) {
 	var notes []*note.Note
 	if err := s.db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (s *SQLiteStore) GetAll(userID int) ([]*note.Note, error) {
 	return notes, nil
 }
 
-func (s *SQLiteStore) Update(n *note.Note) error {
+func (s *SQLiteNoteStore) Update(n *note.Note) error {
 	result := s.db.Save(n)
 	if result.Error != nil {
 		return result.Error
@@ -46,7 +46,7 @@ func (s *SQLiteStore) Update(n *note.Note) error {
 	return nil
 }
 
-func (s *SQLiteStore) Create(n *note.Note) error {
+func (s *SQLiteNoteStore) Create(n *note.Note) error {
 	result := s.db.Create(n)
 	if result.Error != nil {
 		return result.Error
@@ -54,7 +54,7 @@ func (s *SQLiteStore) Create(n *note.Note) error {
 	return nil
 }
 
-func (s *SQLiteStore) Delete(userID, id int) error {
+func (s *SQLiteNoteStore) Delete(userID, id int) error {
 	result := s.db.Where("user_id = ?", userID).Delete(&note.Note{}, id)
 	if result.Error != nil {
 		return result.Error

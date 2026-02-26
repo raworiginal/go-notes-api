@@ -92,7 +92,7 @@ func NewService(repo Repository) *Service
 
 ### Step 3 — Storage layer (`internal/store/`)
 
-**`sqlite.go`** — `SQLiteStore` struct implementing `note.Repository`:
+**`note_sqlite.go`** — `SQLiteNoteStore` struct implementing `note.Repository`:
 - Initializes GORM DB with SQLite dialect: `gorm.Open(sqlite.Open(path), &gorm.Config{})`
 - Runs migrations on startup using `db.AutoMigrate(&Note{})`
 - Implements all 5 interface methods using GORM's query builder

@@ -41,7 +41,7 @@ This is a REST API for a notes app using idiomatic Go with `net/http` standard l
 
 ### `internal/store/` — Storage implementation
 
-- `sqlite.go` — `SQLiteStore` implements `note.Repository` using GORM
+- `note_sqlite.go` — `SQLiteNoteStore` implements `note.Repository` using GORM
 - Maps `gorm.ErrRecordNotFound` → `note.ErrNotFound` to keep domain errors clean
 
 ### `internal/handler/` — HTTP layer
