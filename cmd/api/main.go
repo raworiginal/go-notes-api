@@ -1,11 +1,8 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -23,40 +20,11 @@ func main() {
 	// Load .env file (best-effort; no error if file absent)
 	_ = godotenv.Load()
 
-	// Config from flags/env
-	port := flag.String("port", os.Getenv("PORT"), "Server port")
-	dbPath := flag.String("db", os.Getenv("DB_PATH"), "SQLite database path")
-	jwtSecret := flag.String("secret", os.Getenv("JWT_SECRET"), "JWT secret key")
-	corsOrigins := flag.String("cors", os.Getenv("CORS_ORIGINS"), "Comma-separated CORS allowed origins")
-	flag.Parse()
-
-	// Validate required config
-	if *port == "" {
-		log.Fatal("port is required: set PORT in .env or pass --port")
-	}
-	if *dbPath == "" {
-		log.Fatal("db path is required: set DB_PATH in .env or pass --db")
-	}
-	if *jwtSecret == "" {
-		log.Fatal("JWT secret is required: set JWT_SECRET in .env or pass --secret")
-	}
-	if *corsOrigins == "" {
-		log.Fatal("CORS origins are required: set CORS_ORIGINS in .env or pass --cors")
-	}
-
-	// Parse comma-separated CORS origins
-	allowedOrigins := strings.Split(strings.TrimSpace(*corsOrigins), ",")
-	for i := range allowedOrigins {
-		allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
-	}
-
-	// Normalize port — accept both "3000" and ":3000"
-	if !strings.HasPrefix(*port, ":") {
-		*port = ":" + *port
-	}
+	// Load and validate configuration
+	cfg := LoadConfig()
 
 	// Init database
-	db, err := gorm.Open(sqlite.Open(*dbPath), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(cfg.DBPath), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
@@ -70,7 +38,7 @@ func main() {
 	userStore := store.NewSQLiteUserStore(db)
 	userService := user.NewService(userStore)
 	usersHandler := handler.NewUsersHandler(userService)
-	authHandler := handler.NewAuthHandler(userService, *jwtSecret)
+	authHandler := handler.NewAuthHandler(userService, cfg.JWTSecret)
 
 	// Register routes
 	mux := http.NewServeMux()
@@ -86,28 +54,28 @@ func main() {
 	protected.HandleFunc("DELETE /notes/{id}", notesHandler.Delete)
 
 	// Wrap protected routes with auth middleware
-	mux.Handle("GET /notes", auth.Middleware(*jwtSecret)(protected))
-	mux.Handle("POST /notes", auth.Middleware(*jwtSecret)(protected))
-	mux.Handle("GET /notes/{id}", auth.Middleware(*jwtSecret)(protected))
-	mux.Handle("PUT /notes/{id}", auth.Middleware(*jwtSecret)(protected))
-	mux.Handle("DELETE /notes/{id}", auth.Middleware(*jwtSecret)(protected))
+	mux.Handle("GET /notes", auth.Middleware(cfg.JWTSecret)(protected))
+	mux.Handle("POST /notes", auth.Middleware(cfg.JWTSecret)(protected))
+	mux.Handle("GET /notes/{id}", auth.Middleware(cfg.JWTSecret)(protected))
+	mux.Handle("PUT /notes/{id}", auth.Middleware(cfg.JWTSecret)(protected))
+	mux.Handle("DELETE /notes/{id}", auth.Middleware(cfg.JWTSecret)(protected))
 
 	// Chain middleware
 	var handler http.Handler = mux
 	handler = middleware.Logging(handler)
 	handler = middleware.RequestID(handler)
-	handler = middleware.CORS(allowedOrigins)(handler)
+	handler = middleware.CORS(cfg.CORSOrigins)(handler)
 
 	// Config server with Timeouts
 	server := &http.Server{
-		Addr:         *port,
+		Addr:         cfg.Port,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	log.Printf("Starting server on port %v", *port)
+	log.Printf("Starting server on port %v", cfg.Port)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
