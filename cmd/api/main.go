@@ -27,6 +27,7 @@ func main() {
 	port := flag.String("port", os.Getenv("PORT"), "Server port")
 	dbPath := flag.String("db", os.Getenv("DB_PATH"), "SQLite database path")
 	jwtSecret := flag.String("secret", os.Getenv("JWT_SECRET"), "JWT secret key")
+	corsOrigins := flag.String("cors", os.Getenv("CORS_ORIGINS"), "Comma-separated CORS allowed origins")
 	flag.Parse()
 
 	// Validate required config
@@ -38,6 +39,15 @@ func main() {
 	}
 	if *jwtSecret == "" {
 		log.Fatal("JWT secret is required: set JWT_SECRET in .env or pass --secret")
+	}
+	if *corsOrigins == "" {
+		log.Fatal("CORS origins are required: set CORS_ORIGINS in .env or pass --cors")
+	}
+
+	// Parse comma-separated CORS origins
+	allowedOrigins := strings.Split(strings.TrimSpace(*corsOrigins), ",")
+	for i := range allowedOrigins {
+		allowedOrigins[i] = strings.TrimSpace(allowedOrigins[i])
 	}
 
 	// Normalize port — accept both "3000" and ":3000"
@@ -86,6 +96,7 @@ func main() {
 	var handler http.Handler = mux
 	handler = middleware.Logging(handler)
 	handler = middleware.RequestID(handler)
+	handler = middleware.CORS(allowedOrigins)(handler)
 
 	// Config server with Timeouts
 	server := &http.Server{
