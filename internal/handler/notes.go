@@ -23,13 +23,17 @@ func (h *NotesHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	notes, err := h.service.GetAll(userID)
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(notes); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 }
@@ -41,22 +45,29 @@ func (h *NotesHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid ID"})
 		return
 	}
 
 	n, err := h.service.GetByID(userID, id)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		if errors.Is(err, note.ErrNotFound) {
-			http.Error(w, "Note not found", http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Note not found"})
 			return
 		}
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(n); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 }
@@ -72,7 +83,9 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Todos []note.Todo   `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid JSON"})
 		return
 	}
 
@@ -83,18 +96,23 @@ func (h *NotesHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	n, err := h.service.CreateWithType(userID, req.Title, req.Body, req.Type, req.Todos...)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		if errors.Is(err, note.ErrInvalidInput) {
-			http.Error(w, "Invalid Input", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Invalid input"})
 			return
 		}
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(n); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 }
@@ -106,7 +124,9 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid ID"})
 		return
 	}
 
@@ -118,26 +138,34 @@ func (h *NotesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Todos []note.Todo   `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid JSON"})
 		return
 	}
 	n, err := h.service.UpdateWithTypeAndTodos(userID, id, req.Title, req.Body, req.Type, req.Todos)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		if errors.Is(err, note.ErrInvalidInput) {
-			http.Error(w, "Invalid Input", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Invalid input"})
 			return
 		}
 		if errors.Is(err, note.ErrNotFound) {
-			http.Error(w, "Note not found", http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Note not found"})
 			return
 		}
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(n); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 }
@@ -149,21 +177,28 @@ func (h *NotesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid ID"})
 		return
 	}
 	if err := h.service.Delete(userID, id); err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		if errors.Is(err, note.ErrNotFound) {
-			http.Error(w, "Note not found", http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Note not found"})
 			return
 		}
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "note deleted"}); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 }

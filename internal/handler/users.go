@@ -24,19 +24,25 @@ func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid JSON"})
 		return
 	}
 
 	u, err := h.service.Register(req.Username, req.Email, req.Password)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case errors.Is(err, user.ErrInvalidInput):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
 		case errors.Is(err, user.ErrEmailTaken):
-			http.Error(w, "Email already taken", http.StatusConflict)
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Email already taken"})
 		default:
-			http.Error(w, "Internal error", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		}
 		return
 	}
@@ -44,7 +50,9 @@ func (h *UsersHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(u); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 		return
 	}
 }

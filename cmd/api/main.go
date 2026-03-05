@@ -43,7 +43,7 @@ func main() {
 	// Register routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /users/register", usersHandler.Register)
-	mux.HandleFunc("POST /login", authHandler.Login)
+	mux.HandleFunc("POST /auth/login", authHandler.Login)
 
 	// Protected routes (require authentication)
 	protected := http.NewServeMux()
