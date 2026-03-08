@@ -29,6 +29,9 @@ func main() {
 		log.Fatalf("failed to open database: %v", err)
 	}
 	db.Exec("PRAGMA foreign_keys = ON")
+	if err := store.MigrationRefreshToken(db); err != nil {
+		log.Fatalf("failed to migrate refresh token table: %v", err)
+	}
 
 	// Dependency injection chain
 	noteStore := store.NewSQLiteNoteStore(db)
