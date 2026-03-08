@@ -5,14 +5,17 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 // Config holds all application configuration from env/flags.
 type Config struct {
-	Port           string
-	DBPath         string
-	JWTSecret      string
-	CORSOrigins    []string
+	Port               string
+	DBPath             string
+	JWTSecret          string
+	AccessTokenExpiry  time.Duration
+	RefreshTokenExpiry time.Duration
+	CORSOrigins        []string
 }
 
 // LoadConfig reads configuration from environment variables and flags.
@@ -22,6 +25,16 @@ func LoadConfig() *Config {
 	port := flag.String("port", os.Getenv("PORT"), "Server port")
 	dbPath := flag.String("db", os.Getenv("DB_PATH"), "SQLite database path")
 	jwtSecret := flag.String("secret", os.Getenv("JWT_SECRET"), "JWT secret key")
+	accessExpiry := os.Getenv("JWT_ACCESS_TOKEN_EXPIRY")
+	if accessExpiry == "" {
+		accessExpiry = "15m"
+	}
+	parsedAccessTokenExpiry, _ := time.ParseDuration(accessExpiry)
+	refreshExpiry := os.Getenv("JWT_REFRESH_TOKEN_EXPIRY")
+	if refreshExpiry == "" {
+		refreshExpiry = "168h"
+	}
+	parsedRefreshTokenExpiry, _ := time.ParseDuration(refreshExpiry)
 	corsOrigins := flag.String("cors", os.Getenv("CORS_ORIGINS"), "Comma-separated CORS allowed origins")
 	flag.Parse()
 
@@ -51,9 +64,11 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		Port:        *port,
-		DBPath:      *dbPath,
-		JWTSecret:   *jwtSecret,
-		CORSOrigins: allowedOrigins,
+		Port:               *port,
+		DBPath:             *dbPath,
+		JWTSecret:          *jwtSecret,
+		CORSOrigins:        allowedOrigins,
+		AccessTokenExpiry:  parsedAccessTokenExpiry,
+		RefreshTokenExpiry: parsedRefreshTokenExpiry,
 	}
 }
